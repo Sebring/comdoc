@@ -13,24 +13,14 @@ describe('Comdoc', () => {
 			expect(lines).toBeDefined()
 		})
 
-		test('get parts from lines', async (done) => {
-			try {
-				parts = await Comdoc.getPartsFromLines(lines)
-				expect(parts).toBeDefined()
-				done()
-			} catch (e) {
-				done(e)
-			}
+		test('get parts from lines', () => {
+			parts = Comdoc.getPartsFromLines(lines)
+			expect(parts).toBeDefined()
 		})
 
-		test('get sections from parts', async (done) => {
-			try {
-				sections = Comdoc.getSectionsFromParts(parts)
-				expect(sections).toBeDefined()
-				done()
-			} catch (e) {
-				done(e)
-			}
+		test('get sections from parts', () => {
+			sections = Comdoc.getSectionsFromParts(parts)
+			expect(sections).toBeDefined()
 		})
 	})
 
