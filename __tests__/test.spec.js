@@ -4,6 +4,7 @@ const FPO = require('fpo')
 	let lines = null
 	let parts = null
 	let sections = null
+	let htmlSections = null
 
 describe('Comdoc', () => {
 	describe('general parsing', () => {
@@ -20,6 +21,11 @@ describe('Comdoc', () => {
 
 		test('get sections from parts', () => {
 			sections = Comdoc.getSectionsFromParts(parts)
+			expect(sections).toBeDefined()
+		})
+
+		test('parse sections to html', () => {
+			htmlSections = Comdoc.parseSectionsToHtml(sections)
 			expect(sections).toBeDefined()
 		})
 	})
@@ -44,6 +50,16 @@ describe('Comdoc', () => {
 		})
 
 		describe('sections', () => {
+			let langTest = [
+				[0, 'javascript'],
+				[1, 'javascript'],
+				[2, 'xml'],
+				[3, 'less']
+			]
+			testSectionsLang(langTest)
+		})
+
+		describe('html sections', () => {
 			let langTest = [
 				[0, 'javascript'],
 				[1, 'javascript'],
