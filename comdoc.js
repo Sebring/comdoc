@@ -5,6 +5,7 @@ const yargs = require('yargs/yargs')(process.argv.slice(2))
 const highlight = require('highlight.js')
 const marked = require('marked')
 const ejs = require('ejs')
+const { rcFile } = require('rc-config-loader')
 
 const options = yargs
 	.usage('Usage: comdoc [files]')
@@ -12,6 +13,8 @@ const options = yargs
 	.help('h').alias('help', 'h')
 	.version().alias('version', 'v')
 	.parse()
+
+const getConf = readConfig('comdoc')
 
 // FIXME: this is bad - should be config
 const NO_PART = 0, JS_PART = 1, HTML_PART = 2, CSS_PART = 3
@@ -244,7 +247,7 @@ function parseSectionsToHtml(sections) {
  * Step 4 Run html through template.
  */
 async function runTemplate(sections) {
-	const file = fs.readFileSync('layouts/default/comdoc.ejs')
+	const file = fs.readFileSync(getConf('template'))
 	const template = await ejs.compile(file.toString())
 
 	// FIXME!!
@@ -265,6 +268,14 @@ function addLanguageComment(language) {
 	lang.commentMatcher = RegExp(`^\\s*${language.symbol}\\s?`)
 	lang.commentFilter = /(^#![/]|^\s*#\{)/
 	return lang
+}
+
+// readConfig :: configFile -> (prop -> value)
+function readConfig(name) {
+	var rc = rcFile(name)
+	return function (prop) {
+		return rc.config[prop]
+	}
 }
 
 // equals :: number -> (number -> boolean)
