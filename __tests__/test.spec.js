@@ -1,5 +1,4 @@
 const Comdoc = require('../comdoc.js')
-const FPO = require('fpo')
 
 	let lines = null
 	let parts = null
