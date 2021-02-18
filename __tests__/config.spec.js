@@ -6,9 +6,11 @@ describe('Config', () => {
 	it('exists', () => {
 		conf = rcFile('comdoc')
 		expect(conf).toBeDefined()
+		expect(conf.config).toBeDefined()
+		expect(conf.filePath).toBeDefined()
 	})
 
-	it('has defailt template', () => {
+	it('has default template', () => {
 		expect(conf.config.template).toBeDefined()
 	})
 
