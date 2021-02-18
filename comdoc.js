@@ -6,6 +6,7 @@ const highlight = require('highlight.js')
 const marked = require('marked')
 const ejs = require('ejs')
 const { rcFile } = require('rc-config-loader')
+const { exit } = require('yargs')
 
 const options = yargs
 	.usage('Usage: comdoc [files]')
@@ -15,12 +16,12 @@ const options = yargs
 	.parse()
 
 const getConf = readConfig('comdoc')
+const langConf = rcFile('languages', { configFileName: 'languages.yaml' }).config
 
 // FIXME: this is bad - should be config
-const NO_PART = 0, JS_PART = 1, HTML_PART = 2, CSS_PART = 3
 const commentSymbol = '//'
 const commentSectionSymbol = '///'
-const language = ['none', 'javascript', 'xml', 'less'] 
+const language = ['none', 'javascript', 'xml', 'less']
 
 // async compose
 const composeThen = (...functions) => input => functions.reduceRight((chain, func) => chain.then(func), Promise.resolve(input))
@@ -66,77 +67,72 @@ function getLinesFromFile(file) {
  * @param {string[]} lines lines to parse into parts
  */
 function getPartsFromLines(lines) {
+	var NO_PART = 0
+
+	let parts = langConf.marko.parts.map(part => {
+		let p = {}
+		p.name = part.name
+		p.begins = lineTester(part.begin)
+		p.ends = lineTester(part.end)
+		p.excludeEnd = part.excludeEnd
+		p.excludeBegin = part.excludeBegin
+		return p
+	})
 
 	// common line matching
 	let lineIsEmpty = lineTester(/^\r/)
-	let testJsBegin = lineTester(/(^import\s)|(^class\s{)/)
-	let testCssBegin = lineTester(/^style/)
 	let testCommentBegin = lineTester(`^\\s*${commentSymbol}\\s?`)
-	let testJsComplete =  lineTester(/^}/)
-	let testCssComplete = lineTester(/^}/)
-	let testHtmlComplete = function (line) { 
-		return testCssBegin(line) || testJsBegin(line)
-	}
-	var addEmptyLine = (state, line) => state && lineIsEmpty(line)
 
 	return parseLines(lines)
 
-	// recursive parser  
-	// * lines - remaining lines
-	// * buff - will hold the 3 parts\
-	// * part - current part
-	// * count - line counter
-	function parseLines(lines, buff = [[],[],[],[]], part = NO_PART, count = 1) {
-		if (!lines[0]) return buff.slice(1)
-		if (count > 1500) return
+	function parseLines(lines, buff = [[]], part = NO_PART, count = 1) {
+		if (!lines[0]) { 
+			return buff.slice(1)
+		}
 
 		let line = lines[0]
-
 		let isPart = equals(part)
 
-		//console.log(count, lines[0], part)
-
-		// we have no part at this point
-		// identify new part and continue
+		// check if part begins
 		if (isPart(NO_PART)) {
-			if (lineIsEmpty(line) || testCommentBegin(line))
-				part = part
-			else if (testJsBegin(line)) {
-				part = JS_PART
-				buff[part] = buff[NO_PART].length ? [...buff[NO_PART]] : []
-				buff[NO_PART] = []
-			} else if (testCssBegin(line)) {
-				part = CSS_PART
-				buff[part] = buff[NO_PART].length ? [...buff[NO_PART]] : []
-				buff[NO_PART] = []
-			} else {
-				part = HTML_PART
-				buff[part] = buff[NO_PART].length ? [...buff[NO_PART]] : []
-				buff[NO_PART] = []
+			// add empty line or comment to no-part
+			if (lineIsEmpty(line) || testCommentBegin(line)) {
+				buff[NO_PART].push(line)
+				return parseLines(lines.slice(1), buff, part, ++count)
 			}
-			//console.log('part begins: ' + language[part], count)
-			buff[part].push(line)
-			return parseLines(lines.slice(1), buff, part, ++count)
+			
+			// check line in order of apperance in language file
+			for (const p of parts) {
+				if (p.begins(line)) {
+					part = p.name
+					buff[buff.length] = { language: p.name, lines: [...buff[NO_PART], line] }
+					buff[NO_PART] = []
+					// FIXME - exclude begin
+					console.log(`${p.name} begins at ${count}`)
+					return parseLines(lines.slice(1), buff, part, ++count)
+				}
+			}
 		}
 
-		// current js- or css part might complete
-		if (isPart(JS_PART) && testJsComplete(line) ||
-			(isPart(CSS_PART) && testCssComplete(line))) {
-			buff[part].push(line)
-			//console.log('js/css completed', count, line)
-			return parseLines(lines.slice(1), buff, NO_PART, ++count)
+		// check if part ends
+		// FIXME - #5
+		for (const p of parts) {
+			if (isPart(p.name)) {
+				if (p.ends(line)) {
+					console.log(`${p.name} ends at ${count}`)
+					let slize = 0
+					if (!p.excludeEnd) {
+						buff[buff.length-1].lines.push(line)
+						slize = 1
+						count++
+					}
+					return parseLines(lines.slice(slize), buff, NO_PART, count)
+				}
+			}
 		}
 
-		// as html completes if another part begins, pass counter and line
-		// as is to next
-		if (isPart(HTML_PART) && testHtmlComplete(line)) {
-			//console.log('html completed', count, line)
-			return parseLines(lines, buff, NO_PART, count)
-		}
-
-		// add current line to ongoing part
-		buff[part].push(line)
-		//console.log('add line', count)
+		// add to current part
+		buff[buff.length-1].lines.push(line)
 		return parseLines(lines.slice(1), buff, part, ++count)
 	}
 }
@@ -288,7 +284,7 @@ function equals(x) {
 // linetester :: string -> (string -> string)
 function lineTester(regexp) {
 	let x = new RegExp(regexp)
-	return function(line) {
+	return function testLine(line) {
 		return x.test(line)
 	}
 }
