@@ -1,0 +1,19 @@
+marko:
+  extension: .marko
+  name: markojs
+  comment: //
+  commentSection: ///
+  parts:
+    - name: javascript
+      begin: '(^import\s)|(^class\s{)'
+      end: '^}'
+    - name: less
+      begin: '^style.less'
+      end: '^}'
+    - name: css
+      begin: '^style\s'
+      end: '^}'
+    - name: xml
+      begin: '^[a-z]+'
+      end: '(^import\s)|(^class\s{)|(^style.*{)'
+      excludeEnd: true

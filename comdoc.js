@@ -108,7 +108,7 @@ function getPartsFromLines(lines) {
 					buff[buff.length] = { language: p.name, lines: [...buff[NO_PART], line] }
 					buff[NO_PART] = []
 					// FIXME - exclude begin
-					console.log(`${p.name} begins at ${count}`)
+					//console.log(`${p.name} begins at ${count}`)
 					return parseLines(lines.slice(1), buff, part, ++count)
 				}
 			}
@@ -119,7 +119,7 @@ function getPartsFromLines(lines) {
 		for (const p of parts) {
 			if (isPart(p.name)) {
 				if (p.ends(line)) {
-					console.log(`${p.name} ends at ${count}`)
+					//console.log(`${p.name} ends at ${count}`)
 					let slize = 0
 					if (!p.excludeEnd) {
 						buff[buff.length-1].lines.push(line)
@@ -142,12 +142,12 @@ function getPartsFromLines(lines) {
  * @param {parts[]} parts array of parts
  */
 function getSectionsFromParts(parts) {
-	// console.log('parts', parts)
-	let sections = parts.flatMap((part, index) => parsePartToSections(part, language[1+index]))
+	//console.log('parts', parts)
+	let sections = parts.flatMap((part) => parsePartToSections(part))
 	return sections
 }
 
-function parsePartToSections(part, lang) {
+function parsePartToSections(part) {
 	// common line matchers
 	let isComment = lineTester(`^\\s*${commentSymbol}\\s?`)
 	let isCommentSection = lineTester(`^\\s*${commentSectionSymbol}\\s?`)
@@ -160,19 +160,20 @@ function parsePartToSections(part, lang) {
 	let code = []
 	let buff = []
 
-	return parseLine(part)
+	return parseLine(part.lines)
 
 	function parseLine(lines) {
 		if(!lines[0]) {
-			//console.log('done with section', code, comments, docs)
+			
 			// end ongoing section, code or docs
 			if (code.length)
-				buff.push({ code: [...code], lang, comments: [...comments] })
+				buff.push({ code: [...code], lang: part.language, comments: [...comments] })
 			else if (docs.length)
-				buff.push({ docs: [...docs], lang })
+				buff.push({ docs: [...docs], lang: part.language })
 			docs = []
 			code = []
 			comments = []
+			//console.log('done with section', buff)
 			return buff
 		}
 
@@ -184,7 +185,7 @@ function parsePartToSections(part, lang) {
 			// code section (if any), also add comments to it
 			if (code.length) {
 				//console.log('pushing code', { code: [...code], lang })
-				buff.push({ code: [...code], lang, comments: [...comments]})
+				buff.push({ code: [...code], lang: part.language, comments: [...comments]})
 				code = []
 				comments = []
 			}
@@ -209,7 +210,7 @@ function parsePartToSections(part, lang) {
 			code.push(line)
 			// end current doc section
 			if (docs.length) {
-				buff.push({ docs: [...docs], lang })
+				buff.push({ docs: [...docs], lang: part.language })
 				docs = []
 			}
 		}
