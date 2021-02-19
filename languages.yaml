@@ -1,6 +1,5 @@
-marko:
+- name: markojs
   extension: .marko
-  name: markojs
   comment: //
   commentSection: ///
   parts:

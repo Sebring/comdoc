@@ -6,7 +6,7 @@ const highlight = require('highlight.js')
 const marked = require('marked')
 const ejs = require('ejs')
 const { rcFile } = require('rc-config-loader')
-const { exit } = require('yargs')
+const { extname } = require('path')
 
 const options = yargs
 	.usage('Usage: comdoc [files]')
@@ -21,7 +21,6 @@ const langConf = rcFile('languages', { configFileName: 'languages.yaml' }).confi
 // FIXME: this is bad - should be config
 const commentSymbol = '//'
 const commentSectionSymbol = '///'
-const language = ['none', 'javascript', 'xml', 'less']
 
 // async compose
 const composeThen = (...functions) => input => functions.reduceRight((chain, func) => chain.then(func), Promise.resolve(input))
@@ -48,9 +47,17 @@ async function documentAll(files) {
 }
 
 async function documentOne(file) {
-	pipeThen(getLinesFromFile, getPartsFromLines, getSectionsFromParts, parseSectionsToHtml, runTemplate)(file).then(html => {
+	pipeThen(getLineAndLanguageFromFile, getPartsFromLines, getSectionsFromParts, parseSectionsToHtml, runTemplate)(file).then(html => {
 		fs.writeFileSync('doc2.html', html)
 	})
+}
+
+function getFileExtension(file) {
+	return extname(file)
+}
+
+function getLanguageForExtension(extension) {
+	return langConf.find(language => language.extension === extension)
 }
 
 /**
@@ -62,14 +69,23 @@ function getLinesFromFile(file) {
 }
 
 /**
+ * Get object of { lines, language } from file.
+ * @param {string} file file
+ * @return {object} { lines, language }
+ */
+function getLineAndLanguageFromFile(file) {
+	return {lines: getLinesFromFile(file), language: getLanguageForExtension(getFileExtension(file))}
+}
+
+/**
  * Step 1.
  * Identify the three parts of code.
  * @param {string[]} lines lines to parse into parts
  */
-function getPartsFromLines(lines) {
+function getPartsFromLines(linesAndLanguage) {
 	var NO_PART = 0
 
-	let parts = langConf.marko.parts.map(part => {
+	let parts = linesAndLanguage.language.parts.map(part => {
 		let p = {}
 		p.name = part.name
 		p.begins = lineTester(part.begin)
@@ -83,7 +99,7 @@ function getPartsFromLines(lines) {
 	let lineIsEmpty = lineTester(/^\r/)
 	let testCommentBegin = lineTester(`^\\s*${commentSymbol}\\s?`)
 
-	return parseLines(lines)
+	return parseLines(linesAndLanguage.lines)
 
 	function parseLines(lines, buff = [[]], part = NO_PART, count = 1) {
 		if (!lines[0]) { 
